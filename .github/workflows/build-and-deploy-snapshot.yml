@@ -5,12 +5,13 @@ on:
       - 'main'
       - 'main-internal'
       - '7.1.*.x'
+      - 'mh/test-central-mirror'
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
 jobs:
   build-and-deploy-snapshot:
     name: Build and Deploy Snapshot
-    if: ${{ github.repository == 'spring-projects/spring-framework' || github.repository == 'spring-projects/spring-framework-commercial' }}
+    if: ${{ github.repository == 'spring-projects/spring-framework' || github.repository == 'spring-projects/spring-framework-commercial' || github.repository == 'mhalbritter/spring-framework' }}
     runs-on: ${{ vars.UBUNTU_MEDIUM || 'ubuntu-latest' }}
     timeout-minutes: 60
     steps:
@@ -27,6 +28,7 @@ jobs:
           develocity-access-key: ${{ vars.COMMERCIAL && secrets.DEVELOCITY_ACCESS_KEY }}
           publish: true
       - name: Deploy
+        if: ${{ github.repository != 'mhalbritter/spring-framework' }}
         uses: spring-io/artifactory-deploy-action@aba148f1541e09adcf5735af90029fac9a6d3083 # v0.0.5
         with:
           artifact-properties: |
@@ -43,7 +45,7 @@ jobs:
           signing-key: ${{ secrets.GPG_PRIVATE_KEY }}
           signing-passphrase: ${{ secrets.GPG_PASSPHRASE }}
       - name: Send Notification
-        if: always()
+        if: ${{ always() && github.repository != 'mhalbritter/spring-framework' }}
         uses: ./.github/actions/send-notification
         with:
           build-scan-url: ${{ steps.build-and-publish.outputs.build-scan-url }}
@@ -55,7 +57,7 @@ jobs:
   trigger-docs-build:
     name: Trigger Docs Build
     needs: build-and-deploy-snapshot
-    if: ${{ !vars.COMMERCIAL }} # remove when commercial support
+    if: ${{ !vars.COMMERCIAL && github.repository != 'mhalbritter/spring-framework' }} # remove when commercial support
     permissions:
       actions: write
     runs-on: ${{ vars.UBUNTU_SMALL || 'ubuntu-latest' }}
@@ -67,7 +69,7 @@ jobs:
   verify:
     name: Verify
     needs: build-and-deploy-snapshot
-    if: ${{ !vars.COMMERCIAL }} # remove when commercial support
+    if: ${{ !vars.COMMERCIAL && github.repository != 'mhalbritter/spring-framework' }} # remove when commercial support
     uses: ./.github/workflows/verify.yml
     secrets:
       commercial-repository-password: ${{ secrets.COMMERCIAL_ARTIFACTORY_PASSWORD }}

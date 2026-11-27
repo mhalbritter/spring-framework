@@ -14,9 +14,23 @@ jobs:
     if: ${{ github.repository == 'spring-projects/spring-framework' || github.repository == 'spring-projects/spring-framework-commercial' || github.repository == 'mhalbritter/spring-framework' }}
     runs-on: ${{ vars.UBUNTU_MEDIUM || 'ubuntu-latest' }}
     timeout-minutes: 60
+    env:
+      # Step conditions can't read secrets
+      HAS_MAVEN_MIRROR: ${{ secrets.MAVEN_MIRROR_URL != '' }}
     steps:
       - name: Check Out Code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      # Proves the build doesn't bypass the mirror
+      - name: Blackhole Maven Central
+        if: ${{ env.HAS_MAVEN_MIRROR == 'true' }}
+        uses: mhalbritter/maven-central-proxying/.github/actions/blackhole-maven-central@main
+      - name: Set Up Maven Central Mirror
+        if: ${{ env.HAS_MAVEN_MIRROR == 'true' }}
+        uses: mhalbritter/maven-central-proxying/.github/actions/maven-central-mirror@main
+        with:
+          url: ${{ secrets.MAVEN_MIRROR_URL }}
+          username: ${{ secrets.MAVEN_MIRROR_USERNAME }}
+          password: ${{ secrets.MAVEN_MIRROR_PASSWORD }}
       - name: Build and Publish
         id: build-and-publish
         uses: ./.github/actions/build
